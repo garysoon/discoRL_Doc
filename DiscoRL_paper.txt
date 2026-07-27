@@ -1,0 +1,808 @@
+Article
+
+Discovering state-of-the-art reinforcement
+learning algorithms
+
+https://doi.org/10.1038/s41586-025-09761-x                   Junhyuk Oh1,2 ✉, Gregory Farquhar1,2, Iurii Kemaev1,2, Dan A. Calian1,2, Matteo Hessel1,
+                                                             Luisa Zintgraf1, Satinder Singh1, Hado van Hasselt1 & David Silver1 ✉
+Received: 11 December 2024
+
+Accepted: 15 October 2025
+                                                             Humans and other animals use powerful reinforcement learning (RL) mechanisms
+Published online: 22 October 2025
+                                                             that have been discovered by evolution over many generations of trial and error.
+Open access
+                                                             By contrast, artificial agents typically learn using handcrafted learning rules. Despite
+    Check for updates                                        decades of interest, the goal of autonomously discovering powerful RL algorithms
+                                                             has proven to be elusive1–6. Here we show that it is possible for machines to discover a
+                                                             state-of-the-art RL rule that outperforms manually designed rules. This was achieved
+                                                             by meta-learning from the cumulative experiences of a population of agents across
+                                                             a large number of complex environments. Specifically, our method discovers the
+                                                             RL rule by which the agent’s policy and predictions are updated. In our large-scale
+                                                             experiments, the discovered rule surpassed all existing rules on the well-established
+                                                             Atari benchmark and outperformed a number of state-of-the-art RL algorithms on
+                                                             challenging benchmarks that it had not seen during discovery. Our findings suggest
+                                                             that the RL algorithms required for advanced artificial intelligence may soon be
+                                                             automatically discovered from the experiences of agents, rather than manually
+                                                             designed.
+
+
+The primary goal of artificial intelligence is to design agents that, like                  predictions, as well as the policy itself, towards targets that are func-
+humans, can predict and act in complex environments to achieve goals.                       tions of quantities such as future rewards and future predictions. Exam-
+Many of the most successful agents are based on reinforcement learning                      ples of RL rules based on different targets include temporal-difference
+(RL), in which agents learn by interacting with environments. Decades                       learning16, Q-learning17, proximal policy optimization (PPO)18, auxiliary
+of research have produced ever more efficient RL algorithms, resulting                      tasks19, successor features20 and distributional RL21. In each case, the
+in numerous landmarks in artificial intelligence, including the mas-                        choice of target determines the nature of the predictions, for example,
+tery of complex competitive games such as Go7, chess8, StarCraft9 and                       whether they become value functions, models or successor features.
+Minecraft10, the invention of new mathematical tools11, or the control                         In our framework, an RL rule is represented by a meta-network that
+of complex physical systems12.                                                              determines the targets towards which the agent should move its pre-
+   Unlike humans, whose learning mechanism has been naturally dis-                          dictions and policy (Fig. 1c). This allows the system to discover useful
+covered by biological evolution, RL algorithms are typically manually                       predictions without pre-defined semantics, as well as how they are used.
+designed. This is usually slow and laborious, and limited by reliance on                    The system may in principle rediscover past RL rules, but the flexible
+human knowledge and intuition. Although a number of attempts have                           functional form also allows the agent to invent new RL rules that may
+been made to automatically discover learning algorithms1–6, none have                       be specifically adapted to environments of interest.
+proven to be sufficiently efficient and general to replace hand-designed                       During the discovery process, we instantiate a population of agents,
+RL systems.                                                                                 each of which interacts with its own instance of an environment taken
+   In this work, we introduce an autonomous method for discovering                          from a diverse set of challenging tasks. Each agent’s parameters are
+RL rules solely through the experience of many generations of agents                        updated according to the current RL rule. We then use the meta-gradient
+interacting with various environments (Fig. 1a). The discovered RL                          method13 to incrementally improve the RL rule such that it could lead
+rule achieves state-of-the-art performance on a variety of challenging                      to better-performing agents.
+RL benchmarks. The success of our method contrasts previous work                               Our large-scale empirical results show that our discovered RL rule,
+in two dimensions. First, whereas previous methods searched over                            which we call DiscoRL, surpasses all existing RL rules on the environ-
+narrow spaces of RL rules (for example, hyperparameters13,14 or policy                      ments in which it was meta-learned. Notably, this includes Atari games22,
+loss1,6), our method allows the agent to explore a far more expressive                      arguably the most established and informative of RL benchmarks.
+space of potential RL rules. Second, whereas previous work focused on                       Furthermore, DiscoRL achieved state-of-the-art performance on a
+meta-learning in simple environments (for example, grid-worlds3,15),                        number of other challenging benchmarks, such as ProcGen23, that it
+our method meta-learns in complex and diverse environments at a                             had never been exposed to during discovery. We also show that the per-
+much larger scale.                                                                          formance and generality of DiscoRL improves further as more diverse
+   To choose a general space of discovery, we observe that the essential                    and complex environments are used in discovery. Finally, our analysis
+component of standard RL algorithms is a rule that updates one or more                      shows that DiscoRL has discovered unique prediction semantics that
+
+Google DeepMind, London, UK. 2These authors contributed equally: Junhyuk Oh, Gregory Farquhar, Iurii Kemaev, Dan A. Calian. ✉e-mail: junhyuk@google.com; davidsilver@google.com
+1
+
+
+
+
+312 | Nature | Vol 648 | 11 December 2025
+   a    Discovery                                                                                                  b       Agent
+
+                                                                                                                             Action         Semantics are meta-learned           Pre-defined semantics
+
+                                                    Agent                    Environment
+                                                                                                                    Sample
+                            Improved                                                                                                     Observation-       Action-conditioned                 Auxiliary policy
+                           meta-network                 Agent                     Environment                                Policy      conditioned             prediction            Value     prediction
+                                                                                                                                          prediction
+                                                                                                                              𝛑                 y                    z                  q            p
+                                                             Agent                       Environment
+                                                                                                                                                            a1
+                                                                           Interact                                                                           a2
+                                                                                                                           a1 a 2 a3
+                                                                                                                                                                a3
+            ∇∇
+       Meta-optimization
+                                                                                      Trajectory
+
+
+
+
+                                                                Ta
+                                                                 ger
+                           Update trajectories                                                                                                          Agent
+
+
+                                                                   st
+                                                                         Meta-network                                                                                    Observation
+
+                                                                                                                                              Environment
+
+
+
+
+   c    Meta-network                                                                               d   Meta-optimization
+
+                              Targets can come from future predictions
+                                                                                                         Agent parameters                                 Meta parameters
+              Targets              𝛑 y z                    𝛑 y z
+
+
+
+        Meta-network                LSTM                     LSTM
+
+                                                                                                             0                     1                                           N             ∇ J ()
+                                                                                                                     META-GRADIENT
+                                                                                                                     ∇           ∇                                ∇ 
+            Prediction            𝛑 y z q                   𝛑 y z q                                                    META-GRADIENT
+                                                                                                                                   Meta-gradient ∇ J () = ∇ ∇ J ()
+
+                Agent
+
+                                                                                                                                           ←  + ∇J ()
+            Time step                  t                      t+1
+
+
+
+Fig. 1 | Discovering an RL rule from a population of agents. a, Discovery.                             meta-network, together with rewards and episode termination indicators from
+Multiple agents, interacting with various environments, are trained in parallel                        the environment (omitted for simplicity in the figure). Using this information,
+according to the learning rule, defined by the meta-network. In the meantime,                          the meta-network produces targets for all of the agent’s predictions from the
+the meta-network is optimized to improve the agents’ collective performances.                          current and future time steps. The agent is updated to minimize the prediction
+b, Agent architecture. An agent produces the following outputs: (1) a policy (π),                      errors with respect to their targets. LSTM, long short-term memory. d, Meta-
+(2) an observation-conditioned prediction vector (y), (3) action-conditioned                           optimization. The meta-parameters of the meta-network are updated by taking
+prediction vectors (z), (4) action values (q) and (5) an auxiliary policy prediction (p).              a meta-gradient step calculated from backpropagation through the agent’s
+The semantics of y and z are determined by the meta-network. c, Meta-network                           update process (θ0 → θ N), where the meta-objective is to maximize the collective
+architecture. A trajectory of the agent’s outputs is given as input to the                             returns of the agents in their environments.
+
+
+
+
+are distinct from existing RL concepts such as value functions. To the                                 hand-crafting them, we define an expressive space of predictions
+best of our knowledge, this is the empirical evidence that surpassing                                  without pre-defined semantics and meta-learn what the agent needs
+manually designed RL algorithms in terms of both generality and effi-                                  to optimize by representing it using a meta-network. It is desirable to
+ciency is finally within reach.                                                                        maintain the ability to represent key ideas in existing RL algorithms,
+                                                                                                       while supporting a large space of novel algorithmic possibilities.
+                                                                                                          To this end, we let the agent, parameterized by θ, output two types
+Discovery method                                                                                       of predictions in addition to a policy (π): an observation-conditioned
+Our discovery approach involves two types of optimization: agent opti-                                 vector prediction y(s) ∈ ℝn of arbitrary size n and an action-conditioned
+mization and meta-optimization. Agent parameters are optimized by                                      vector prediction z(s, a) ∈ ℝm of arbitrary size m, where s and a are
+updating their policies and predictions towards the targets produced                                   an observation and an action, respectively (Fig. 1b). The form of these
+by the RL rule. Meanwhile, the meta-parameters of the RL rule are opti-                                predictions stems from the fundamental distinction between pre-
+mized by updating its targets to maximize the cumulative rewards of                                    diction and control16. For example, value functions are commonly
+the agents.                                                                                            divided into state-value functions v(s) (for prediction) and action-
+                                                                                                       value functions q(s, a) (for control), and many other concepts in RL,
+Agent network                                                                                          such as rewards and successor features, also have an observation-
+Much RL research considers what predictions an agent should make                                       conditioned version and an action-conditioned version. There-
+(for example, values), and what loss function should be used to learn                                  fore, the functional form of the predictions (y, z) is general enough
+those predictions (for example, temporal-difference (TD) learning)                                     to represent, but is not restricted to, many existing fundamental
+and improve the policy (for example, policy gradient). Instead of                                      concepts in RL.
+
+
+                                                                                                                                             Nature | Vol 648 | 11 December 2025 | 313
+Article
+   In addition to the predictions to be discovered, in most of our experi-
+ments the agent makes predictions with pre-defined semantics. Spe-                  Meta-optimization
+cifically, the agent produces an action-value function q(s, a) and an               Our goal is to discover an RL rule, represented by the meta-network
+action-conditional auxiliary policy prediction p(s, a)8. This encourages            with meta-parameters η, that allows agents to maximize rewards in a
+the discovery process to focus on discovering new concepts through                  variety of training environments. This discovery objective J(η) and its
+y and z.                                                                            meta-gradient ∇η J(η) can be expressed as:
+
+Meta-network                                                                                       J (η) = EE Eθ[ J (θ)], ∇η J (η) ≈ EE Eθ[∇η θ∇θ J (θ)],
+A large proportion of modern RL rules use the forward view of RL16.
+In this view, the RL rule receives a trajectory from time step t to t + n,          where E indicates an environment sampled from a distribution and θ
+and uses this information to update the agent’s predictions or policy.              denotes agent parameters induced by an initial parameter distribution
+They typically update the predictions or policy towards bootstrapped                and their evolution over the course of learning with the RL rule.
+targets, that is, towards future predictions.                                        J (θ) = E [∑t γ trt ] , where γ is the discount factor and rt is the reward at
+   Correspondingly, our RL rule uses a meta-network (Fig. 1c) as a                  step t, is the expected discounted sum of rewards, which is the typical
+function that determines targets towards which the agent should                     RL objective. The meta-parameters are optimized using gradient ascent
+move its predictions and policy. To produce targets at time step t,                 following the above equations.
+the meta-network receives as input a trajectory of the agent’s pre-                     To estimate the meta-gradient, we instantiate a population of agents
+dictions and policy as well as rewards and episode termination from                 that learn according to the meta-network in a set of sampled environ-
+time step t to t + n. It uses a standard long short-term memory24 to pro-           ments. To ensure this approximation is close to the true distribution of
+cess these inputs, although other architectures may be used (Extended               interest, we use a large number of complex environments taken from
+Data Fig. 3).                                                                       challenging benchmarks, in contrast to previous work that focused on a
+   The choice of inputs and outputs to the meta-network maintains                   small number of simple environments. As a result the discovery process
+certain desirable properties of handcrafted RL rules. First, the meta-              surfaces diverse RL challenges, such as the sparsity of rewards, the task
+network can deal with any observation and with discrete action spaces               horizon, and the partial observability or stochasticity of environments.
+of any size. This is possible because the meta-network does not receive                 Each agent’s parameters are periodically reset to encourage the
+the observation directly as input, but only indirectly via predictions.             update rule to make fast learning progress within a limited agent life-
+In addition, it processes action-specific inputs and outputs by sharing             time. As in previous work on meta-gradient RL13, the meta-gradient
+weights across action dimensions. As a result it can generalize to radi-            term ∇η J(η) can be divided into two gradient terms by the chain rule:
+cally different environments. Second, the meta-network is agnostic                  ∇ηθ and ∇θ J(θ). The first term can be understood as a gradient over the
+to the design of the agent network, as it sees only the output of the               agent update procedure27, whereas the second term is the gradient of
+agent network. As long as the agent network produces the required                   the standard RL objective. To estimate the first term, we iteratively
+form of outputs (π, y, z), the discovered RL rule can generalize to arbi-           update the agent multiple times and backpropagate through the entire
+trary agent architectures or sizes. Third, the search space defined by              update procedure, as illustrated in Fig. 1d. To make it tractable, we
+the meta-network includes the important algorithmic idea of boot-                   backpropagate over 20 agent updates using a sliding window. Finally, to
+strapping. Fourth, as the meta-network processes both policy and                    estimate the second term, we use the advantage actor–critic method28.
+predictions together, it can not only meta-learn auxiliary tasks25 but              To estimate the advantage, we train a meta-value function, which is a
+also directly use predictions to update the policy (for example, to pro-            value function used only for discovery.
+vide a baseline for variance reduction). Finally, outputting targets is
+strictly more expressive than outputting a scalar loss function, as it
+includes semi-gradient methods such as Q-learning in the search space.              Empirical result
+While building on these properties of standard RL algorithms, the rich              We implemented our discovery method with a large population of
+parametric neural network allows the discovered rule to implement                   agents in a set of complex environments. We call the discovered RL rule
+algorithms with potentially much greater efficiency and contextual                  DiscoRL. In evaluation, the aggregated performance was measured by
+nuance.                                                                             the interquartile mean (IQM) of normalized scores for benchmarks
+                                                                                    that consist of multiple tasks, which has proven to be a statistically
+Agent optimization                                                                  reliable metric29.
+The agent’s parameters (θ) are updated to minimize the distance from
+its predictions and policy to the targets from the meta-network. The                Atari
+agent’s loss function can be expressed as:                                          The Atari benchmark22, one of the most studied benchmarks in the
+                                                                                    history of RL, consists of 57 Atari 2600 games. They require com-
+                         ^ , π θ(s)) + D(y
+     L(θ) = Es, a  πθ[D(π               ^ , y (s)) + D(^z, z θ(s , a)) + Laux ]    plex strategies, planning and long-term credit assignment, making
+                                              θ
+                                                                                    it non-trivial for AI agents to master. Hundreds of RL algorithms have
+where s and a are distributed according to the policy πθ, and D(p, q)               been evaluated on this benchmark over the past decade, which include
+is a distance function between p and q. We chose the Kullback–Leibler               MuZero8 and Dreamer10.
+divergence as the distance function, as it is sufficiently general and                 To see how strong the rule can be when discovered directly from this
+has previously been found to make meta-optimization easier3. Here πθ,               benchmark, we meta-trained an RL rule, Disco57, and evaluated it on the
+yθ, zθ and π  ^,y^ , ^z are the outputs of the agent network and the                same 57 games (Fig. 2a). In this evaluation, we used a network architec-
+meta-network, respectively, with a softmax function applied to nor-                 ture that has a number of parameters comparable to the number used
+malize each vector.                                                                 by MuZero. This is a larger network than the one used during discovery;
+   The auxiliary loss Laux is used for predictions with pre-defined seman-          the discovered RL rule must therefore generalize to this setting. Disco57
+tics: action values (q) and auxiliary policy predictions (p) as follows:            achieved an IQM of 13.86, outperforming all existing RL rules8,10,14,30 on
+         ^ , qθ(s, a)) + D(p
+Laux = D(q                                      ^ is an action-value target from
+                           ^ , pθ(s, a)), where q                                   the Atari benchmark, with a substantially higher wall-clock efficiency
+Retrace26 projected to a two-hot vector8, and p          ^ = πθ(s′) is the policy   compared with the state-of-the-art MuZero (Extended Data Fig. 4).
+at the one-step future state. To be consistent with the rest of losses, we          This shows that our method can automatically discover a strong RL
+use the Kullback–Leibler divergence as the distance function D.                     rule from such challenging environments.
+
+
+314 | Nature | Vol 648 | 11 December 2025
+                 a                       Used to discover Disco57                                        b                                                                       c                                   Used to discover Disco103
+                                                         Atari                                                                              ProcGen                                                                         DMLab-30
+
+
+
+
+                                                                                                               1.0                                                                               0.7
+
+                     14
+                                                                                                               0.9                                                                               0.6
+                              MuZero (2020)
+                     12       MEME (2022)
+                                                                                                               0.8                                                                               0.5
+                                                                                                                                                       MuZero
+                     10
+                                                                                                                                                                                                                                          IMPALA @1B
+                                                                 Dreamer (2025)                                0.7                                            Dreamer                            0.4
+            IQM
+
+
+
+
+                                                                                                         IQM
+
+
+
+
+                                                                                                                                                                                IQM
+                      8
+                                                                                                                                                                       PPG
+                                                                                                               0.6                                                                               0.3
+                      6                                           STACX (2020)
+
+                                                                                                               0.5                                                                               0.2
+                      4
+                                                                 IMPALA (2018)                                                                                         PPO
+                      2                                                                                        0.4                                                                               0.1
+                                                                    DQN (2015)
+
+                      0                                                                                        0.3                                                                                 0
+                          0                                                        200                                 0                           30                     50                            0                                               300
+                                  Number of environment steps (millions)                                                      Number of environment steps (millions)                                           Number of environment steps (millions)
+
+
+ d                                                    Crafter                            e                                            NetHack challenge                          f                                            Sokoban
+
+
+
+
+                                                                                                         2,000                                                                                   10.0       MuZero
+                 14       Human                                                                                        Leaderboard best
+                                                                                                                                                                                                  7.5
+                 12
+                                            12                                                           1,500                                                                                    5.0
+                                                      Dreamer
+Average return
+
+
+
+
+                                                                                        Average return
+
+
+
+
+                                                                                                                                                                                Average return
+
+
+
+
+                 10
+                                                                                                                       2nd
+                                                                                                                                                                                                  2.5
+                                                                                                         1,000
+                  8
+                                                                                                                       3rd                                                                         0
+                                                      Rainbow
+                  6                                                                                                                                                                              −2.5
+                                                                                                           500
+                                                                         PPO                                           4th
+                                                                                                                                                                IMPALA
+                  4                           2                                                                                                                                                  −5.0
+                                                  0                            1
+                                                                                                               0                                                                                 −7.5
+                  2
+                      0                                                            20                              0                                                    2,000                           0                                               100
+                                 Number of environment steps (millions)                                                      Number of environment steps (millions)                                            Number of environment steps (millions)
+
+Fig. 2 | Evaluation of DiscoRL. a–f, Performance of DiscoRL compared to human-                                                                 is discovered from Atari, ProcGen and DMLab-30 benchmarks. The shaded
+designed RL rules on Atari (a), ProcGen (b), DMLab (c), Crafter (d; figure inset                                                               areas show 95% confidence intervals. The dashed lines represent manually
+shows results for 1 million environment steps), NetHack (e), and Sokoban (f).                                                                  designed RL rules such as MuZero8, efficient memory-based exploration
+The x axis represents the number of environment steps in millions. The y axis                                                                  agent (MEME) 30, Dreamer10, self-tuning actor-critic algorithm (STACX)14,
+represents the human-normalized IQM score for benchmarks consisting                                                                            importance-weighted actor-learner architecture (IMPALA)34, deep Q-network
+of multiple tasks (Atari, ProcGen and DMLab-30) and average return for the rest.                                                               (DQN) 51, phasic policy gradient (PPG)52, proximal policy optimization (PPO)18,
+Disco57 (blue) is discovered from the Atari benchmark and Disco103 (orange)                                                                    and Rainbow53.
+
+
+
+
+                                                                                                                                                                                                 Nature | Vol 648 | 11 December 2025 | 315
+Article
+ a                                                                        b 1.0                                                                c
+                  12
+
+                                                                                                                                                           Disco57                                           11.6
+                  10
+                                                                                          0.8
+                                                                                                                                  MuZero           Without auxiliary                                     10.5
+                  8                                          Muesli                                                                                      prediction
+
+
+
+
+                                                                         IQM on ProcGen
+IQM on Atari 57
+
+
+
+
+                                                                                          0.6
+                                                                                                                                                      Small agents                                 8.7
+                  6
+                                                                                                                                               Without prediction                      5.0
+                                                                                          0.4
+                  4
+                                                                                                                                       PPO
+                                                                                                                                               Toy environments                  3.4
+                  2                                      IMPALA                           0.2
+                                                                                                                                                     Without value         2.9
+                                                                                                          Atari       DM-Lab + ProcGen
+                  0                                                                                                                                                              IMPALA                  Muesli
+                                                                                           0
+                       0   200             600                   1,200                          14   16              57                  103                           0                                            12
+                                 Steps per game (millions)                                           Number of training environments                                                    IQM on Atari
+
+Fig. 3 | Properties of discovery process. a, Discovery efficiency. The best                                               without the auxiliary prediction (p). ‘Small agents’ uses a smaller agent
+DiscoRL was discovered within 3 simulations of the agent’s lifetimes                                                      network during discovery. ‘Without prediction’ is meta-learned without
+(200 million steps) per game. b, Scalability. DiscoRL becomes stronger on                                                 learned predictions (y, z). ‘Without value’ is meta-learned without the value
+the ProcGen benchmark (30 million environment steps for all methods) as the                                               function (q). ‘Toy environments’ is meta-learned from 57 grid-world tasks
+training set of environments grows. c, Ablation. The plot shows the performances                                          instead of Atari games.
+of variations of DiscoRL on Atari. ‘Without auxiliary prediction’ is meta-learned
+
+
+                                                                                                                          the set of environments. This shows that the discovery process itself
+Generalization                                                                                                            is robust, scalable and general.
+We further investigated the generality of Disco57 by evaluating it on                                                        To further investigate the importance of using complex environ-
+a variety of held-out benchmarks that it was never exposed to during                                                      ments, we ran our discovery process on 57 grid-world tasks that are
+discovery. These benchmarks include unseen observation and action                                                         extended from previous work3, using the same meta-learning settings
+spaces, diverse environment dynamics, various reward structures and                                                       as for Disco57. The new rule had a significantly worse performance
+unseen agent network architectures. Meta-training hyperparameters                                                         (Fig. 3c) on the Atari benchmark. This verifies our hypothesis about the
+were tuned on only training environments (that is, Atari) to prevent                                                      importance of meta-learning directly from complex and challenging
+the rule from being implicitly optimized for held-out benchmarks.                                                         environments. While using such environments was crucial, there was
+   The result on the ProcGen23 benchmark (Fig. 2b and Extended Data                                                       no need for a careful curation of the correct set of environments; we
+Table 2), which consists of 16 procedurally generated two-dimensional                                                     simply used popular benchmarks from the literature.
+games, shows that Disco57 outperformed all existing published meth-
+ods, including MuZero8 and PPO18, even though it had never interacted                                                     Efficiency and scalability
+with ProcGen environments during discovery. In addition, Disco57                                                          To further understand the scalability and efficiency of our approach,
+achieved a competitive performance on Crafter31 (Fig. 2d and Extended                                                     we evaluated multiple Disco57s over the course of discovery (Fig. 3a).
+Data Table 5), where the agent needs to learn a wide spectrum of abili-                                                   The best rule was discovered within approximately 600 million steps
+ties to survive. Disco57 reached the third place on the leaderboard of                                                    per Atari game, which amounts to just 3 experiments across 57 Atari
+NetHack NeurIPS 2021 Challenge32 (Fig. 2e and Extended Data Table 4),                                                     games. This is arguably more efficient than the manual discovery of RL
+where more than 40 teams participated. Unlike the top submitted                                                           rules, which typically requires many more experiments to be executed,
+agents in the competition33, Disco57 did not use any domain-specific                                                      in addition to the time of the human researchers.
+knowledge for defining subtasks or reward shaping. For a fair compari-                                                       Furthermore, DiscoRL performed better on the unseen ProcGen
+son, we trained an agent with the importance weighted actor-learner                                                       benchmark as more Atari games were used for discovery (Fig. 3b), show-
+architecture (IMPALA) algorithm34 using the same settings as Disco57.                                                     ing that the resulting RL rule scales well with the number and diversity of
+IMPALA’s performance was much weaker, suggesting that Disco57                                                             environments used for discovery. In other words, the performance of the
+has discovered a more efficient RL rule than standard approaches. In                                                      discovered rule is a function of data (that is, environments) and compute.
+addition to environments, Disco57 turned out to be robust to a range
+of agent-specific settings such as network size, replay ratio and hyper-                                                  Effect of discovering new predictions
+parameters in evaluation (Extended Data Fig. 1).                                                                          To study the effect of the discovered semantics of predictions (y, z
+                                                                                                                          in Fig. 1b), we compared different rules by varying the outputs of the
+Complex and diverse environments                                                                                          agent, with and without certain types of prediction. The result in Fig. 3c
+To understand the importance of complex and diverse environments                                                          shows that the use of a value function markedly improves the discovery
+for discovery, we further scaled up meta-learning with additional envi-                                                   process, which highlights the importance of this fundamental con-
+ronments. Specifically, we discovered another rule, Disco103, using a                                                     cept of RL. However, the result in Fig. 3c also shows the importance of
+more diverse set of 103 environments consisting of the Atari, ProcGen                                                     discovering new prediction semantics (y and z) beyond pre-defined
+and DMLab-3035 benchmarks. This rule performs similarly on the Atari                                                      predictions. Overall, increasing the scope of discovery compared with
+benchmark while improving scores on every other seen and unseen                                                           previous work1–6 was essential. In the following section, we provide
+benchmark in Fig. 2. In particular, Disco103 reached human-level per-                                                     further analysis to uncover what semantics have been discovered.
+formance on Crafter and neared MuZero’s state-of-the-art performance
+on Sokoban36. These results show that the more complex and diverse
+the set of environments used for discovery, the stronger and more                                                         Analysis
+general the discovered rule becomes, even on held-out environments                                                        Qualitative analysis
+that were not seen during discovery. Discovering Disco103 required no                                                     We analysed the nature of the discovered rule, using Disco57 as a
+changes to the discovery method compared with Disco57 other than                                                          case study (Fig. 4). Qualitatively, the discovered predictions spike in
+
+
+316 | Nature | Vol 648 | 11 December 2025
+a
+          t = 296                       t = 310                     t = 338                                t = 156                                          t = 179                     t = 195
+
+
+
+
+                                                                                                                                                                                                                               Observation
+
+
+
+
+                                                                                                                                                                                                                               Prediction (y)
+
+
+
+
+                                                                                                                                                                                                                               Prediction confidence
+
+
+                                                                                                                                                                                                                               Policy confidence
+
+
+                                                                                                                                                                                                                               Reward
+
+
+                                                                                                                                                                                                                               Value
+
+290             300         310                   320            330                      340 150               160         170                                       180            190                               200
+                                                                                         Time step
+b                             c                                                                                                d                                                                   e
+        Gradient analysis                          Future entropy                                 Large-reward event                                               Bootstrapping horizon                                       Reliance on predictions
+      Value                             1.0                                              1.0                                                                                                                          10
+
+
+
+
+                                                                                                                             Change in z target at t = 0
+                                                                                                                                                                                                                                 Disco57
+       Prediction                                                                                                                                          0.8                                                                   Without bootstrapping
+                                        0.8                                              0.9
+
+
+
+
+                                                                                                                                                                                                  Normalized return
+                                                                                                                                                                                                                      8
+                                                                                                                                                                                                                                 Without prediction
+                                                                                                                                                           0.6
+                                                                              Accuracy
+                             R2 score
+
+
+
+
+              Policy                    0.6                                              0.8                                                                                                                          6
+                                        0.4                                              0.7                                                               0.4
+                                                                                                                                                                                                                      4
+                                        0.2                                              0.6                                                               0.2
+                                                                                                                                                                                                                      2
+                                         0                                               0.5                                                                0
+                                                                                                                                                                                                                      0
+                                              0 1 2 3 4 5 6 7 8 9 10                           0 1 2 3 4 5 6 7 8 9 10                                                    0          5                                      0                             200
+                                                   Future time step                                 Future time step                                             Time step with perturbed z                                    Number of environment
+                                                                                                                                                                                                                                  steps (millions)
+                                                        Policy      Value                 Prediction (y)         Baseline
+
+Fig. 4 | Analysis of DiscoRL. a, Behaviour of discovered predictions.                                           events can be better predicted from discovered predictions. The shaded
+The plot shows how the agent’s discovered prediction ( y) changes along                                         areas represent 95% confidence intervals. d, Bootstrapping horizon.
+with other quantities in Ms Pacman (left) and Breakout (right). ‘Confidence’                                    The plot shows how much the prediction target produced by DiscoRL
+is calculated as negative entropy. Spikes in prediction confidence are                                          changes when the prediction at each time step is perturbed. The individual
+correlated with upcoming salient events. For example, they often precede                                        curves correspond to 16 randomly sampled trajectories and the
+large rewards in Ms Pacman and strong action preferences in Breakout.                                           bold curve corresponds to the average over them. e, Reliance on
+b, Gradient analysis. Each contour shows where each prediction focuses                                          predictions. The plot shows the performance of the controlled DiscoRL
+on in the observation through a gradient analysis in Beam Rider. The                                            on Ms Pacman without bootstrapping when updating predictions and
+predictions tend to focus more on enemies at a distance, whereas the                                            without using predictions at all. The shaded areas represent 95%
+policy and the value tend to focus on nearby enemies and the scoreboard,                                        confidence intervals.
+respectively. c, Prediction analysis. Future entropy and large-reward
+
+
+
+advance of salient events such as receiving rewards or changes in the                                           discovered predictions contain greater information about upcom-
+entropy of the policy (Fig. 4a). We also investigated which features                                            ing large rewards and the future policy entropy, compared with the
+of the observation cause the meta-learned predictions to respond                                                policy and value. This suggests that the discovered predictions may
+strongly, by measuring the gradient norm associated with each part                                              capture unique task-relevant information that is not well captured by
+of the observation. The result in Fig. 4b shows that meta-learned                                               the policy and value.
+predictions tend to pay attention to objects that may be relevant
+in the future, which is distinct from where the policy and the value                                            Emergence of bootstrapping
+function pay attention to. These results indicate that DiscoRL has                                              We also found evidence that DiscoRL uses a bootstrapping mechanism.
+learned to identify and predict salient events over a modest horizon,                                           When the meta-network’s prediction input at future time steps (zt+k) is
+and thus complements existing concepts such as the policy and value                                             perturbed, it strongly affects the target ^z t (Fig. 4d). This means that
+function.                                                                                                       the future predictions are used to construct targets for the current
+                                                                                                                predictions. This bootstrapping mechanism and the discovered predic-
+                                                                                                                tions turned out to be critical for performance (Fig. 4e). If the y and z
+Information analysis                                                                                            inputs to the meta-network are set to zero when computing their targets
+To confirm the qualitative findings, we further investigated what infor-                                        ^y and ^z (thus preventing bootstrapping), performance degrades sub-
+mation is contained in the predictions. We first collected data from                                             stantially. If the y and z inputs are set to zero for computing all targets
+the DiscoRL agent on 10 Atari games and trained a neural network to                                              including the policy target, the performance drops even further. This
+predict quantities of interest from either the discovered predictions,                                           shows the discovered predictions are heavily used to inform the policy
+the policy or the value function. The results in Fig. 4c show that the                                           update, rather than just serving as auxiliary tasks.
+
+
+                                                                                                                                                                            Nature | Vol 648 | 11 December 2025 | 317
+Article
+                                                                                                       4.    Xu, Z. et al. Meta-gradient reinforcement learning with an objective discovered online.
+Previous work                                                                                                In Proc. Adv. Neural Inf. Process. Syst. 33, 15254–15264 (NeurIPS, 2020).
+                                                                                                       5.    Houthooft, R. et al. Evolved policy gradients. In Proc. Adv. Neural Inf. Process. Syst. 31,
+The idea of meta-learning, or learning to learn, in artificial agents dates                                  5405–5414 (NeurIPS, 2018).
+back to the 1980s37, with proposals to train meta-learning systems                                     6.    Lu, C. et al. Discovered policy optimisation. In Proc. Adv. Neural Inf. Process. Syst. 35,
+                                                                                                             16455–16468 (NeurIPS, 2022).
+with backpropagation of gradients38. The core idea of using a slower                                   7.    Silver, D. et al. Mastering the game of Go with deep neural networks and tree search.
+meta-learning process to meta-optimize a fast learning or adaptation pro-                                    Nature 529, 484–489 (2016).
+cess39,40 has been studied for numerous applications in various contexts,                              8.    Schrittwieser, J. et al. Mastering Atari, Go, chess and shogi by planning with a learned model.
+                                                                                                             Nature 588, 604–609 (2020).
+including transfer learning41, continual learning42, multi-task learning43,                            9.    Vinyals, O. et al. Grandmaster level in StarCraft II using multi-agent reinforcement learning.
+hyperparameter optimization44 and automated machine learning45.                                              Nature 575, 350–354 (2019).
+   Early efforts to use meta-learning for RL agents comprised attempts                                 10.   Hafner, D., Pasukonis, J., Ba, J. & Lillicrap, T. Mastering diverse control tasks through world
+                                                                                                             models. Nature 640, 647–653 (2025).
+to meta-learn information-seeking behaviours46. Many later works have                                  11.   Fawzi, A. et al. Discovering faster matrix multiplication algorithms with reinforcement
+focused on meta-learning a small number of hyperparameters of an                                             learning. Nature 610, 47–53 (2022).
+existing RL algorithm13,14. Such approaches have produced promising                                    12.   Degrave, J. et al. Magnetic control of tokamak plasmas through deep reinforcement learning.
+                                                                                                             Nature 602, 414–419 (2022).
+results but cannot markedly depart from the underlying handcrafted                                     13.   Xu, Z., van Hasselt, H. P. & Silver, D. Meta-gradient reinforcement learning. In Proc. Adv.
+algorithms. Another line of work has attempted to eschew inductive                                           Neural Inf. Process. Syst. 31, 2402–2413 (NeurIPS, 2018).
+biases by meta-learning entirely black-box algorithms implemented,                                     14.   Zahavy, T. et al. A self-tuning actor–critic algorithm. In Proc. Adv. Neural Inf. Process. Syst.
+                                                                                                             33, 20913–20924 (NeurIPS, 2020).
+for example, as recurrent neural networks47 or as a synaptic learning                                  15.   Jackson, M. T. et al. Discovering general reinforcement learning algorithms with
+rule48. Although conceptually appealing, these methods are prone to                                          adversarial environment design. In Proc. Adv. Neural Inf. Process. Syst. 36, 79980–79998
+overfit to tasks seen in meta-training49.                                                                    (NeurIPS, 2023).
+                                                                                                       16.   Sutton, R. S. & Barto, A. G. Reinforcement learning: An Introduction (MIT Press, 2018).
+   The idea of representing knowledge using a wider class of predictions                               17.   Watkins, C. J. & Dayan, P. Q-learning. Mach. Learn. 8, 279–292 (1992).
+was first introduced in temporal-difference networks50 but without                                     18.   Schulman, J., Wolski, F., Dhariwal, P., Radford, A. & Klimov, O. Proximal policy optimization
+any meta-learning mechanism. A similar idea has been explored for                                            algorithms. Preprint at https://arxiv.org/abs/1707.06347 (2017).
+                                                                                                       19.   Jaderberg, M. et al. Reinforcement learning with unsupervised auxiliary tasks. In Proc.
+meta-learning auxiliary tasks25. Our work extends this idea to effectively                                   International Conference on Learning Representations (ICLR, 2017).
+discover an entire loss function that the agent optimizes, covering a                                  20.   Barreto, A. et al. Successor features for transfer in reinforcement learning. In Proc. Adv.
+                                                                                                             Neural Inf. Process. Syst. 30, 4055–4065 (NeurIPS, 2017).
+much broader range of possible RL rules. Furthermore, unlike previous
+                                                                                                       21.   Bellemare, M. G., Dabney, W. & Munos, R. A distributional perspective on reinforcement
+work, the discovered knowledge can generalize to unseen environments.                                        learning. In Proc. International Conference on Machine Learning 449–458 (PMLR, 2017).
+   Recently, there have been growing interests in discovering general-                                 22.   Bellemare, M. G., Naddaf, Y., Veness, J. & Bowling, M. The arcade learning environment:
+                                                                                                             an evaluation platform for general agents. J. Artif. Intell. Res. 47, 253–279 (2013).
+purpose RL rules1,3–6,15. However, most of them were limited to small
+                                                                                                       23.   Cobbe, K., Hesse, C., Hilton, J. & Schulman, J. Leveraging procedural generation to
+agents and simple tasks, or the scope of discovery was limited to a                                          benchmark reinforcement learning. In Proc. International Conference on Machine Learning
+partial RL rule. Therefore, their rules were not extensively compared                                        2048–2056 (PMLR, 2020).
+                                                                                                       24.   Hochreiter, S. & Schmidhuber, J. Long short-term memory. Neural Comput. 9, 1735–1780
+with state-of-the-art rules on challenging benchmarks. In contrast, we
+                                                                                                             (1997).
+search over a larger space of rules, including entirely new predictions,                               25.   Veeriah, V. et al. Discovery of useful questions as auxiliary tasks. In Proc. Adv. Neural Inf.
+and scale up to a large number of complex environments for discovery. As                                     Process. Syst. 32, 9306–9317 (NeurIPS, 2019).
+                                                                                                       26.   Munos, R., Stepleton, T., Harutyunyan, A. & Bellemare, M. Safe and efficient off-
+a result, we demonstrate that it is possible to discover a general-purpose
+                                                                                                             policy reinforcement learning. In Proc. Adv. Neural Inf. Process. Syst. 29, 1054–1062
+RL rule that outperforms a number of state-of-the-art rules on challeng-                                     (NeurIPS, 2016).
+ing benchmarks.                                                                                        27.   Finn, C., Abbeel, P. & Levine, S. Model-agnostic meta-learning for fast adaptation of deep
+                                                                                                             networks. In Proc. International Conference on Machine Learning 70, 1126–1135 (PMLR, 2017).
+                                                                                                       28.   Mnih, V. et al. Asynchronous methods for deep reinforcement learning. In Proc. International
+                                                                                                             Conference on Machine Learning 48, 1928–1937 (PMLR, 2016).
+Conclusion                                                                                             29.   Agarwal, R., Schwarzer, M., Castro, P. S., Courville, A. C. & Bellemare, M. Deep reinforcement
+                                                                                                             learning at the edge of the statistical precipice. In Proc. Adv. Neural Inf. Process. Syst. 34,
+Enabling machines to discover learning algorithms for themselves is                                          29304–29320 (NeurIPS, 2021).
+one of the most promising ideas in artificial intelligence owing to its                                30.   Kapturowski, S. et al. Human-level Atari 200x faster. In Proc. International Conference on
+potential for open-ended self-improvement. This work has taken a                                             Learning Representations (ICLR, 2023).
+                                                                                                       31.   Hafner, D. Benchmarking the spectrum of agent capabilities. In Proc. International Conference
+step towards machine-designed RL algorithms that can compete with                                            on Learning Representations (ICLR, 2022).
+and even outperform some of the best manually designed algorithms                                      32.   Küttler, H. et al. The nethack learning environment. In Proc. Adv. Neural Inf. Process. Syst.
+in challenging environments. We also showed that the discovered                                              33, 7671–7684 (NeurIPS, 2020).
+                                                                                                       33.   Hambro, E. et al. Insights from the NeurIPS 2021 NetHack challenge. In Proc. NeurIPS 2021
+rule becomes stronger and more general as it gets exposed to more                                            Competitions and Demonstrations Track 41–52 (PMLR, 2022).
+diverse environments. This suggests that the design of RL algorithms                                   34.   Espeholt, L. et al. IMPALA: scalable distributed deep-RL with importance weighted actor-
+for advanced AI may in the future be led by machines that can scale                                          learner architectures. In Proc. International Conference on Learning Representations
+                                                                                                             (ICLR, 2018).
+effectively with data and compute.                                                                     35.   Beattie, C. et al. DeepMind Lab. Preprint at https://arxiv.org/abs/1612.03801 (2016).
+                                                                                                       36.   Racanière, S. et al. Imagination-augmented agents for deep reinforcement learning.
+                                                                                                             In Proc. Adv. Neural Inf. Process. Syst. 30, 5690–5701 (NeurIPS, 2017).
+Online content                                                                                         37.   Schmidhuber, J. Evolutionary Principles in Self-referential Learning, or on Learning How to
+                                                                                                             Learn: the Meta-meta-… Hook. PhD thesis, Technische Univ. München (1987).
+Any methods, additional references, Nature Portfolio reporting summa-                                  38.   Schmidhuber, J. A possibility for implementing curiosity and boredom in model-building
+ries, source data, extended data, supplementary information, acknowl-                                        neural controllers. In Proc. International Conference on Simulation of Adaptive Behavior:
+                                                                                                             from Animals to Animats 222–227 (MIT Press, 1991).
+edgements, peer review information; details of author contributions                                    39.   Schmidhuber, J., Zhao, J. & Wiering, M. Simple Principles of Metalearning. Report No.
+and competing interests; and statements of data and code availability                                        IDSIA-69-96 (Istituto Dalle Molle Di Studi Sull Intelligenza Artificiale, 1996).
+are available at https://doi.org/10.1038/s41586-025-09761-x.                                           40.   Thrun, S. & Pratt, L. Learning to Learn: Introduction and Overview 3-17 (Springer, 1998).
+                                                                                                       41.   Pan, S. J. & Yang, Q. A survey on transfer learning. IEEE Trans. Knowl. Data Eng. 22,
+                                                                                                             1345–1359 (2009).
+                                                                                                       42.   Parisi, G. I., Kemker, R., Part, J. L., Kanan, C. & Wermter, S. Continual lifelong learning with
+1.   Kirsch, L., van Steenkiste, S. & Schmidhuber, J. Improving generalization in meta                       neural networks: a review. Neural Netw. 113, 54–71 (2019).
+     reinforcement learning using learned objectives. In Proc. International Conference on             43.   Caruana, R. Multitask learning. Mach. Learn. 28, 41–75 (1997).
+     Learning Representations (ICLR, 2020).                                                            44.   Feurer, M. & Hutter, F. Hyperparameter Optimization 3–33 (Springer, 2019).
+2.   Kirsch, L. et al. Introducing symmetries to black box meta reinforcement learning. In Proc.       45.   Yao, Q. et al. Taking human out of learning applications: a survey on automated machine
+     AAAI Conference on Artificial Intelligence 36, 7202–7210 (Association for the Advancement               learning. Preprint at https://www.arxiv.org/abs/1810.13306v3 (2018).
+     of Artificial Intelligence, 2022).                                                                46.   Storck, J., et al. Reinforcement driven information acquisition in non-deterministic
+3.   Oh, J. et al. Discovering reinforcement learning algorithms. In Proc. Adv. Neural Inf. Process.         environments. In International Conference on Artificial Neural Networks 2, 159–164
+     Syst. 33, 1060–1070 (NeurIPS, 2020).                                                                    (ICANN, 1995).
+
+
+
+318 | Nature | Vol 648 | 11 December 2025
+47.   Duan, Y. et al. RL2: fast reinforcement learning via slow reinforcement learning. Preprint at    Publisher’s note Springer Nature remains neutral with regard to jurisdictional claims in
+      https://arxiv.org/abs/1611.02779 (2016).                                                         published maps and institutional affiliations.
+48.   Niv, Y., Joel, D., Meilijson, I. & Ruppin, E. Evolution of reinforcement learning in uncertain
+      environments: a simple explanation for complex foraging behaviors. Adapt. Behav. 10,                                Open Access This article is licensed under a Creative Commons Attribution-
+      5–24 (2002).                                                                                                        NonCommercial-NoDerivatives 4.0 International License, which permits any
+49.   Xiong, Z., Zintgraf, L., Beck, J., Vuorio, R. & Whiteson, S. On the practical consistency of                        non-commercial use, sharing, distribution and reproduction in any medium or
+      meta-reinforcement learning algorithms. Preprint at https://arxiv.org/abs/2112.00478             format, as long as you give appropriate credit to the original author(s) and the source, provide
+      (2021).                                                                                          a link to the Creative Commons licence, and indicate if you modified the licensed material.
+50.   Sutton, R. S. & Tanner, B. Temporal-difference networks. In Proc. Adv. Neural Inf. Process.      You do not have permission under this licence to share adapted material derived from this
+      Syst. 17, 1377–1384 (NeurIPS, 2004).                                                             article or parts of it. The images or other third party material in this article are included in the
+51.   Mnih, V., Kavukcuoglu, K., Silver, D. et al. Human-level control through deep reinforcement      article’s Creative Commons licence, unless indicated otherwise in a credit line to the material.
+      learning. Nature 518, 529–533 (2015).                                                            If material is not included in the article’s Creative Commons licence and your intended use is
+52.   Cobbe, K., Hilton, J., Klimov, O., and Schulman, J. Phasic policy gradient. In Proc.             not permitted by statutory regulation or exceeds the permitted use, you will need to obtain
+      International Conference on Machine Learning 139, 2020–2027 (PMLR, 2021).                        permission directly from the copyright holder. To view a copy of this licence, visit http://
+53.   Hessel, M. et al. Rainbow: combining improvements in deep reinforcement learning.                creativecommons.org/licenses/by-nc-nd/4.0/.
+      In Proc. AAAI Conference on Artificial Intelligence 32, 3215–3222 (Association for the
+      Advancement of Artificial Intelligence, 2018).                                                   © The Author(s) 2025
+
+
+
+
+                                                                                                                                            Nature | Vol 648 | 11 December 2025 | 319
+Article
+Methods                                                                                                        ^ ). This prevents the meta-network from proposing excessively
+                                                                                                       target (π
+                                                                                                       aggressive updates that could lead to collapse.
+Meta-network                                                                                             It is noted that these methods are used only to stabilize meta-
+The meta-network maps a trajectory of agent outputs along with                                         optimization, and they do not determine how the agents are updated.
+relevant quantities from the environment to targets: mη : fθ (st), fθ − (st),                          The meta-learned rule still solely determines how the agents are
+                                                                         ^ , ^y, ^z , where η repre­
+a t , rt , bt , …, fθ (st + n), fθ − (st + n), a t + n, rt + n, bt + n ↦ π                             updated.
+sents meta-parameters, and fθ = [πθ(s), yθ(s), zθ(s), qθ(s)] is the agent
+output with parameters θ. a, r and b are an action taken by the agent,                                 Implementation details
+a reward and an episode termination indicator, respectively. θ− is an                                  We developed a framework that uses JAX library55,56 and distributes
+exponential moving average of parameters θ. This functional form                                       computation across tensor processing units (TPUs)57 inspired by the
+allows the meta-network to search over a strictly larger space of rules                                Podracer architectures58. In this framework, each agent is simulated
+compared with meta-learning a scalar loss function. This is further                                    independently, with the meta-gradients of all agents being calculated
+discussed in Supplementary Information.                                                                in parallel. The meta-parameters are updated synchronously by aggre-
+    The meta-network processes the inputs by unrolling a long short-term                               gating meta-gradients across all agents. We used MixFlow-MG59 to
+memory (LSTM) backwards in time as illustrated in Fig. 1c. This allows                                 minimize the computational cost of the runs.
+it to take into account n-step future information to produce targets,                                     For Disco57, we instantiate 128 agents by cycling through the 57 Atari
+as in multi-step RL methods such as temporal-difference methods                                        environments in lexicographic order. For Disco103, we instantiate 206
+TD(λ)54. We found that this architecture is computationally more effi-                                 agents, with two copies of each environment from Atari, ProcGen and
+cient than alternatives such as transformers, while achieving a similar                                DMLab-30. Disco57 was discovered using 1,024 TPUv3 cores for 64 hours,
+performance, as shown in Extended Data Fig. 3b.                                                        and Disco103 was discovered using 2,048 TPUv3 cores for 60 hours.
+    The action-specific inputs and outputs are processed in the                                           The meta-value function used to calculate the meta-gradient is
+meta-network using shared weights over the action dimension, and                                       updated using V-Trace34, with a discount factor of 0.997 and a TD(λ)
+an intermediate embedding is computed by averaging across it. This                                     coefficient of 0.95. The meta-value function and agent networks are
+allows the meta-network to process any number of actions. More details                                 optimized using an Adam optimizer with a learning rate of 0.0003.
+about it can be found in Supplementary Information.                                                    For meta-parameter updates, we use the Adam optimizer with a learning
+    To allow the meta-network to discover a wider class of algorithms,                                 rate of 0.001 and gradient clipping of 1.0. Each agent is updated based
+such as reward normalization, that require maintaining statistics over                                 on a batch of 96 trajectories with 29 time steps each. In each batch,
+an agent’s lifetime, we add an additional recurrent neural network.                                    on-policy trajectories and trajectories sampled from the replay buffer
+This ‘meta-RNN’ is unrolled forward across agent updates (from θi                                      are mixed, with replay trajectories accounting for 90% of each batch.
+to θi+1), rather than across time steps in an episode. The core of the                                 At each meta-step, 48 trajectories are generated to calculate the
+meta-RNN is another LSTM module. For each of the agent updates,                                        meta-gradient and update the meta-value function.
+the whole batch of trajectories is embedded into a single vector that                                     Each agent’s parameters are reset after it has consumed its allocated
+is passed to this LSTM. The meta-RNN can potentially capture the                                       experience budget. When resetting, a new experience budget is sam-
+learning dynamics throughout the agent’s lifetime, producing tar-                                      pled from the categories (200 million, 100 million, 50 million, 20 mil-
+gets that are adaptive to the specific agent and the environment. The                                  lion) with a weight inversely proportional to the budget, such that the
+meta-RNN slightly improved the overall performance, as shown in                                        same amount of total experience is sampled in each category. This was
+Extended Data Fig. 3a. Further details are described in Supplementary                                  based on our observation that much of learning happens early in the
+Information.                                                                                           lifetime and demonstrated a marginal improvement in our preliminary
+                                                                                                       small-scale investigation.
+Meta-optimization stabilization
+A number of challenges arise when we discover at a large scale, mainly                                 Hyperparameters and evaluation
+because of unbalanced gradient signals coming from agents in different                                 For evaluation on held-out benchmarks, we only tuned the learning rate
+environments and myopic gradients caused by long lifetimes of agents.                                  from {0.0001, 0.0003, 0.0005}. The rest of the hyperparameters were
+We introduce a few methods to alleviate these problems.                                                selected based on baseline algorithms from the literature.
+   First, when estimating the advantage term in the advantage actor–                                      The evaluation on Atari games (shown in Fig. 2a and Extended Data
+critic method to estimate ∇θ J(θ) in the meta-gradient, we normalize                                   Table 1) used a version of the IMPALA34 network with an increased
+the advantage term as follows: A = (A − μ)/σ, where A is a normalized                                  parameter count that matches the agent network size used by MuZero8.
+advantage and μ and σ are the exponentially moving average and stand-                                  Specifically, we used a network with 4 convolutional residual blocks
+ard deviation of advantages accumulated over the agent’s lifetime. We                                  with 256, 384, 384 and 256 filters, a shared fully connected final layer
+found that this makes the scale of the advantage term balanced across                                  of 768 dimensions, and an LSTM-based action-conditional predictions
+different environments. In addition, when aggregating the meta-                                        component that is composed of an LSTM with a 1,024 hidden state
+gradient from the population of agents, we take the average of the                                     dimension and a 1,024-dimensional fully connected layer. DMLab-30
+meta-gradients over all agents after applying a separate Adam optimizer                                evaluations (Fig. 2c and Extended Data Table 3) use the same action
+                                                           1    n
+to the meta-gradient calculated from each agent: η ← η + n ∑i =1 ADAM(gi ),                            space discretization and agent network architecture as used in IMPALA.
+where gi is the meta-gradient estimation from the ith agent in the                                     See Extended Data Table 6 for the list of hyperparameters. To verify
+population. We found that this helps to normalize the magnitude of                                     the statistical significance of our evaluations, we used two random
+the meta-gradients from each agent.                                                                    seeds for initialization on each environment from Atari, ProcGen and
+   We add two meta-regularization losses (Lent and LKL) to the meta-                                   DMLab, three seeds on Crafter and NetHack, and five seeds on Sokoban.
+objective J(η) as follows: EE Eθ[ J (θ) − Lent (θ) − LKL (θ)]. Lent (θ) = − Es, a
+[H (yθ(s)) + H (z θ(s, a))] is an entropy regularization of predictions                                Analysis details
+y and z, where H(⋅) is the entropy of the given categorical distribution.                              For the prediction analysis in Fig. 4c, we train multiple 3-layer percep-
+We found that this helps prevent the predictions from converging                                       trons (MLPs) with 128, 64 and 32 hidden units for each layer respectively.
+prematurely. LKL (θ) = DKL(π θ −||π ^ ) is the Kullback–Leibler divergence                             The MLPs are trained to predict quantities such as future entropy and
+between the policy of a target network with an exponential moving                                      rewards from the outputs of an agent that has been trained on differ-
+average of the agent parameters (θ−) and the meta-network’s policy                                     ent Atari games using Disco57. We use 10 Atari games (Alien, Amidar,
+Battle Zone, Frostbite, Gravitar, Qbert, Riverraid, Road Runner,                                    58. Hessel, M. et al. Podracer architectures for scalable reinforcement learning. Preprint at
+                                                                                                        https://arxiv.org/abs/2104.06272 (2021).
+Robotank and Zaxxon). The values shown in Fig. 4c are R2 scores for                                 59. Kemaev, I., Calian, D. A., Zintgraf, L. M., Farquhar, G. & van Hasselt, H. Scalable meta-learning
+future entropy and test accuracy for large-reward events using five-                                    via mixed-mode differentiation. In Proc. International Conference on Machine Learning
+fold cross-validation. Extended Data Fig. 2 provides an additional                                      267, 29687–19605 (PMLR, 2025).
+
+prediction analysis for more quantities. For high-dimensional outputs
+(y, z, za), we used a larger 3-layer MLP with 256 hidden units each.                                Acknowledgements We thank S. Flennerhag, Z. Marinho, A. Filos, S. Bhupatiraju, A. György
+                                                                                                    and A. A. Rusu for their feedback and discussions about related ideas; B. Huergo Muñoz,
+                                                                                                    M. Kroiss and D. Horgan for their help with the engineering infrastructure; R. Hadsell,
+                                                                                                    K. Kavukcuoglu, N. de Freitas and O. Vinyals for their high-level feedback on the project; and
+Data availability                                                                                   S. Osindero and D. Precup for their feedback on an early version of this work.
+No external data were used for the results presented in the article.
+                                                                                                    Author contributions J.O., I.K., G.F. and D.A.C. contributed equally. J.O., G.F., I.K., D.A.C. and
+                                                                                                    L.Z. developed and analysed the method with advice from H.v.H., S.S. and D.S. J.O., G.F., M.H.,
+                                                                                                    D.A.C. and I.K. evaluated the method. I.K. led engineering with contributions from J.O., D.C. and
+Code availability                                                                                   G.F. J.O. and G.F. wrote the paper with contributions from L.Z. and D.A.C. H.v.H., S.S. and D.S.
+We provide the meta-training and evaluation code, with the meta-                                    advised the team. J.O. and D.S. led the project.
+
+parameters of Disco103, under an open source licence at https://github.
+                                                                                                    Competing interests A patent application(s) directed to aspects of the work described has
+com/google-deepmind/disco_rl. All of the benchmarks presented in                                    been filed and is pending as of the date of manuscript submission. Google LLC has ownership
+the article are publicly available.                                                                 and potential commercial interests in the work described.
+
+
+54. Sutton, R. S. Learning to predict by the methods of temporal differences. Mach. Learn. 3,       Additional information
+    9–44 (1988).                                                                                    Supplementary information The online version contains supplementary material available at
+55. Bradbury, J. et al. JAX: composable transformations of Python+ NumPy programs.                  https://doi.org/10.1038/s41586-025-09761-x.
+    http://github.com/jax-ml/jax (2018).                                                            Correspondence and requests for materials should be addressed to Junhyuk Oh or
+56. DeepMind et al. The DeepMind JAX ecosystem. GitHub http://github.com/google-                    David Silver.
+    deepmind (2020).                                                                                Peer review information Nature thanks Kenji Doya, Joel Lehman and the other, anonymous,
+57. Jouppi, N. P. et al. In-datacenter performance analysis of a tensor processing unit. In Proc.   reviewer(s) for their contribution to the peer review of this work.
+    Annual International Symposium on Computer Architecture 1–12 (ICSA, 2017).                      Reprints and permissions information is available at http://www.nature.com/reprints.
+Article
+
+
+
+
+Extended Data Fig. 1 | Robustness of DiscoRL. The plots show the performance   proportion of replay data in a batch compared to on-policy data. (c) A sweep
+of Disco57 and Muesli on Ms Pacman by varying agent settings. ‘Discovery’      over optimisers (Adam or RMSProp), learning rates, weight decays, and
+and ‘Evaluation’ represent the setting used for discovery and evaluation,      gradient clipping thresholds was evaluated (36 combinations in total) and
+respectively. (a) Each rule was evaluated on various agent network sizes.      ranked according to the final score.
+(b) Each rule was evaluated on various replay ratios, which define the
+Extended Data Fig. 2 | Detailed results for the regression and classification analysis. Each cell represents the test score of one MLP model that has been
+trained to predict some quantity (columns) given the agent’s outputs (rows).
+Article
+
+
+
+
+Extended Data Fig. 3 | Effect of meta-network architecture. (a) The x-axis    Atari benchmark. All methods are discovered from 16 randomly selected
+represents the number of environment steps in evaluation and the y-axis       Atari games. Each curve corresponds to a different meta-network architecture,
+the IQM on the Atari benchmark. All methods are discovered from 16 randomly   with varying number of LSTM hidden units, or its LSTM component is replaced
+selected Atari games. The meta-RNN component slightly improves performance.   by a transformer. The choice of the meta-net architecture minimally affects
+The shaded areas show 95% confidence intervals. (b) The x-axis represents     performance. The shaded areas show 95% confidence intervals.
+the number of environment steps in evaluation and the y-axis the IQM on the
+Extended Data Fig. 4 | Computational cost comparison. The x-axis represents
+the amount of TPU hours spent for evaluation. The y-axis represents the
+performance on the Atari benchmark. Each algorithm was evaluated on
+57 Atari games for 200 M environment steps. DiscoRL reached MuZero’s final
+performance with approximately 40% less computation.
+Article
+Extended Data Table 1 | Atari57 result
+
+
+
+
+Each algorithm was evaluated at 200 M environment steps. The best result for each game is shown in bold.
+Extended Data Table 2 | ProcGen result
+
+
+
+
+Best result for each game shown in bold. The agents were trained and evaluated on 500 training levels.
+Article
+Extended Data Table 3 | DMLab-30 result
+
+
+
+
+Best result for each task shown in bold.
+Extended Data Table 4 | NetHack result
+
+
+
+
+Comparison to top 4 submissions from the “Final (Neural)” leaderboard of the NetHack NeurIPS 2021 Challenge33. Note that median scores were used for ranking submissions on the
+leaderboard, whereas we report mean scores to be consistent with other benchmarks.
+Article
+Extended Data Table 5 | Crafter result
+
+
+
+
+Dreamer, Rainbow, PPO, Disco57 @1 M and Disco103 @1 M all use the same data budget of 1 M environment steps, while Disco57 @20 M and Disco103 @20 M use 20 M steps.
+Extended Data Table 6 | Hyperparameters of agents in evaluation
+
